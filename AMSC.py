@@ -50,6 +50,115 @@ def graficoST(df,estacion):
         plt.minorticks_on()
 
             #####################################################
+def resumen_estacion(Estacion,path_in3,columnas,path_out1):
+    archivos=[]
+    C1 = os.listdir(path_in3)
+    print("PASO 1")
+    for i in tqdm(range(len(C1))):
+        print("PASO 2 -",len(C1))
+        estacion=unidecode(C1[i].replace("DatosMeteo","").lower().strip())
+        #Lectura de las carpetas por estación
+        if estacion==Estacion:# Filtro para seleccionar la estación
+            print("#######################################\n")
+            print(estacion)
+            C2=glob.glob(path_in3+C1[i]+"*/A20*")
+            #Se recorren las carpetas
+            v=pd.DataFrame() #Almacenar todos los csv
+            for ii in range(len(C2)):
+                C3=os.listdir(C2[ii])
+                for iii in range(len(C3)):
+                    try:
+                        m=C3[iii].split(".")
+                        if "swp" in m: continue
+                        datos=pd.read_csv(C2[ii]+"/"+C3[iii],usecols=columnas)
+                    
+                    except pd.errors.EmptyDataError as e:
+                        # Guardar información sobre el error
+                        print(f"Ocurrió un error: {e} - Sin Columnas")
+                        #print(f"Información del error: {error_info}")
+                        archivos.append(C3[iii])
+                    
+                    except pd.errors.ParserError as e:
+                        # Guardar información sobre el error
+                        print(f"Ocurrió un error: {e} - Errore de Parseo")
+                        #print(f"Información del error: {error_info}")
+                        archivos.append(C3[iii])
+                        with open(C3[iii], newline='') as csvfile:
+                            df = csv.reader(csvfile)
+                            next(df) # Omitir la primera fila si es un encabezado
+                            datos=[]
+                            #print(1)
+                            for iv, fila in enumerate(df, start=2):
+                                m=f'{fila}'.replace("'","").replace("[","").replace("]","").split(",")
+                                if len(m)==42:
+                                    datos.append(m)
+                                if len(m)!=42:
+                                    print("En la fila ",iv," existe un error de parseo")
+                                    print("")
+                            datos=pd.DataFrame(datos)
+                            print(datos)
+                    
+                    
+                    v=pd.concat([v,datos],axis=0)
+                    v=v.reset_index(drop=True)
+            #Verificación de nombre de columnas
+            m=v.columns
+            print(2*"#","\n",m)
+            v.columns=["fecha","Bar","Out_Temp","Wind_Speed","Wind_Dir","Out_Hum","Rain_Rate","UV","Sol_Rad"]
+            m=v.columns
+            print(2*"#",m,"\n")
+            #Fecha
+            try:
+                v['fecha'] = pd.to_datetime(v['fecha'])
+                print("\n fecha inicial: ", v.fecha.min(),
+                      "\n fecha final: ", v.fecha.max())
+            except ParserError :
+                start_time = time.time()
+                v = v.dropna(subset=['fecha'])
+                print("Comienza proceso para procesar fecha, puede tardar un tiempo")
+                def convertir_fecha(texto):
+                    try:
+                        fecha_convertida = pd.to_datetime(texto, format='%Y-%m-%d %H:%M:%S')
+                    except ValueError:
+                        fecha_convertida = pd.to_datetime(texto, format='%Y:%m:%d-%H:%M:%S', errors='coerce')
+                    return fecha_convertida
+                v['fecha'] = v['fecha'].apply(convertir_fecha)
+                v['fecha'] = v['fecha'] 
+                end_time = time.time()
+                execution_time = end_time - start_time
+                print("\n fecha inicial: ", v.fecha.min(),
+                      "\n fecha final: ", v.fecha.max(),execution_time)
+            except ValueError as e :  
+                print(e)
+                position_start = str(e).find("position") + len("position") + 1
+                position_end = str(e).find(".", position_start)
+                position = int(str(e)[position_start:position_end])
+                print("La posición del error es:", position)
+                
+                v=v.drop([int(position)],axis=0)
+                v=v.reset_index(drop=True)
+                v['fecha'] = pd.to_datetime(v['fecha']) 
+                            
+            #Variables
+            v["Rain_Rate"]=v['Rain_Rate']*0.2/60. #in units of cm/hr
+            if Estacion in ["caucasia","santafe"]:
+                v['Bar'] = (v['Bar']/1000.*(3386.389/100.0))
+            else:
+                v['Bar'] = (v['Bar']/1000.*(3386.389/100.0))
+            v['Out_Temp'] = ( v['Out_Temp']/10. - 32.) * (5.0/9.0)
+            v.loc[(v['Out_Temp'] > 50) | (v['Out_Temp'] < -15)] = np.nan
+            #Procesamiento final
+            v.sort_values("fecha")
+            v = v.dropna(subset=['fecha'])
+            diferencia = v['fecha'].diff()
+            frecuencia_comun = diferencia.mode()[0]
+            v = v.resample(frecuencia_comun, on='fecha').mean()
+            v=v.reset_index()
+            v.to_csv(path_out1+estacion+".csv")
+            #Visualizacion
+            #graficoST(v,estacion)
+            print("\n #######################################")
+            #####################################################
 def resumen_estacion_andes(Estacion,path_in3,columnas_xlsx,path_out1):
     v=pd.DataFrame()
     C4 = glob.glob(path_in3+"/*DatosMe*")

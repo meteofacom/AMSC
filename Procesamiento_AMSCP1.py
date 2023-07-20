@@ -12,8 +12,8 @@ from AMSC import resumen_estacion,resumen_estacion_andes,resumen_estacion_orient
 # 3. INFORMACIÓN DE ENTRADA
 
 # 3.1 Direcciones de entrada y salida
-path_in=""# Carpeta de entrada
-path_out1=""#Carpeta de salida
+path_in=r"/home/luisa/Descargas/Seminario_AMSC_20072023/AMSC-master/Entrada/"# Carpeta de entrada
+path_out1=r"/home/luisa/Descargas/Seminario_AMSC_20072023/AMSC-master/Salida/"#Carpeta de salida
 # 3.2 Carpeta
 # 3.3 Vectores
 columnas=["Tiempo Sistema","Outside Temperature","Wind Speed","Wind Direction","Outside Humidity",
